@@ -1,0 +1,5 @@
+{
+    "/mu":"https://boards.4channel.org/mu/",
+    "/lit":"https://boards.4channel.org/lit/",
+    "/tv":"https://boards.4channel.org/tv/",
+}
