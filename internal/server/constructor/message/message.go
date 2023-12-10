@@ -3,8 +3,6 @@ package message
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 )
 
@@ -15,12 +13,6 @@ type Photo struct {
 	Reply_markup InlineKeyboardMarkup `json:"reply_markup"`
 }
 
-type Text struct {
-	Chat_id      int                  `json:"chat_id"`
-	Text         string               `json:"text"`
-	Reply_markup InlineKeyboardMarkup `json:"reply_markup"`
-}
-
 type InlineKeyboardMarkup struct {
 	Inline_keyboard [][]InlineKeyboardButton `json:"inline_keyboard"`
 }
@@ -28,10 +20,6 @@ type InlineKeyboardMarkup struct {
 type InlineKeyboardButton struct {
 	Text          string `json:"text"`
 	Callback_data string `json:"callback_data"`
-}
-
-type Sendable interface {
-	Send(apiUrl string) (err error)
 }
 
 func (ph *Photo) Send(apiUrl string) (err error) {
@@ -48,10 +36,13 @@ func (ph *Photo) Send(apiUrl string) (err error) {
 	}
 	defer resp.Body.Close()
 
-	bb, err := io.ReadAll(resp.Body)
-	fmt.Println(string(bb), err)
-
 	return
+}
+
+type Text struct {
+	Chat_id      int                  `json:"chat_id"`
+	Text         string               `json:"text"`
+	Reply_markup InlineKeyboardMarkup `json:"reply_markup"`
 }
 
 func (t *Text) Send(apiUrl string) (err error) {
@@ -67,9 +58,6 @@ func (t *Text) Send(apiUrl string) (err error) {
 		return
 	}
 	defer resp.Body.Close()
-
-	bb, err := io.ReadAll(resp.Body)
-	fmt.Println(string(bb), err)
 
 	return
 }

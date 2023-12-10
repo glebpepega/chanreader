@@ -3,11 +3,15 @@ package parser
 import (
 	"errors"
 	"github.com/glebpepega/chanreader/internal/parser/post"
-	"github.com/glebpepega/chanreader/internal/parser/thread"
 	"github.com/glebpepega/chanreader/internal/server/constructor/message"
 	"golang.org/x/net/html"
 	"strconv"
+	"time"
 )
+
+type Sendable interface {
+	Send(apiUrl string) (err error)
+}
 
 type Board struct {
 	Name    string
@@ -20,7 +24,7 @@ func (b *Board) ProcessChildNodes(n *html.Node) (err error) {
 
 			var (
 				p post.Post
-				t thread.Thread
+				t Thread
 			)
 
 			if err = post.Parse(&p, n); err != nil {
@@ -43,7 +47,7 @@ func (b *Board) ProcessChildNodes(n *html.Node) (err error) {
 }
 
 func (b *Board) Render(apiUrl string, chatId int) (err error) {
-	var s message.Sendable
+	var s Sendable
 
 	for i, t := range b.Threads {
 		if len(t.Posts) == 0 {
@@ -102,6 +106,8 @@ func (b *Board) Render(apiUrl string, chatId int) (err error) {
 		if err = s.Send(apiUrl); err != nil {
 			return
 		}
+
+		sleepBeforeAnotherRequest()
 	}
 
 	return
@@ -139,7 +145,7 @@ func (t *Thread) ProcessChildNodes(n *html.Node) (err error) {
 
 func (t *Thread) Render(apiUrl string, chatId int) (err error) {
 	for i, p := range t.Posts {
-		var s message.Sendable
+		var s Sendable
 
 		text := p.Subject + "\n" + p.DateTime + "\nNo." + strconv.Itoa(p.Number) + "\n\n" + p.Message
 
@@ -189,7 +195,13 @@ func (t *Thread) Render(apiUrl string, chatId int) (err error) {
 		if err = s.Send(apiUrl); err != nil {
 			return
 		}
+
+		sleepBeforeAnotherRequest()
 	}
 
 	return
+}
+
+func sleepBeforeAnotherRequest() {
+	time.Sleep(time.Millisecond * 500)
 }

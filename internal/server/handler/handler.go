@@ -3,8 +3,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/glebpepega/chanreader/internal/parser/board"
-	"github.com/glebpepega/chanreader/internal/parser/thread"
+	"github.com/glebpepega/chanreader/internal/parser"
 	"github.com/glebpepega/chanreader/internal/server/constructor/home"
 	"github.com/glebpepega/chanreader/internal/server/constructor/page"
 	"io"
@@ -87,10 +86,7 @@ func New(log *slog.Logger, apiUrl string) http.HandlerFunc {
 			return
 		}
 
-		log.Info(
-			"new request",
-			"chat id", u.Message.Chat.Id,
-		)
+		var chatId int
 
 		if u.Callback_query.Id != "" {
 			if u.Callback_query.Data == "" {
@@ -105,7 +101,12 @@ func New(log *slog.Logger, apiUrl string) http.HandlerFunc {
 				return
 			}
 
-			chatId := u.Callback_query.From.Id
+			chatId = u.Callback_query.From.Id
+
+			log.Info(
+				"new request",
+				"chat id", chatId,
+			)
 
 			if u.Callback_query.Data == "H" {
 				if err := home.New(apiUrl, chatId); err != nil {
@@ -126,14 +127,14 @@ func New(log *slog.Logger, apiUrl string) http.HandlerFunc {
 					return
 				}
 
-				p = &thread.Thread{
-					Board: board.Board{
+				p = &parser.Thread{
+					Board: parser.Board{
 						Name: sl[boardName],
 					},
 					Number: sl[threadNum],
 				}
 			} else {
-				p = &board.Board{
+				p = &parser.Board{
 					Name: u.Callback_query.Data,
 				}
 			}
@@ -148,13 +149,18 @@ func New(log *slog.Logger, apiUrl string) http.HandlerFunc {
 		msg := u.Message.Text
 
 		if msg == "/start" || msg == "/home" {
-			chatId := u.Message.Chat.Id
+			chatId = u.Message.Chat.Id
+
+			log.Info(
+				"new request",
+				"chat id", chatId,
+			)
 
 			if err := home.New(apiUrl, chatId); err != nil {
 				log.Error(err.Error())
-			}
 
-			return
+				return
+			}
 		}
 	}
 }

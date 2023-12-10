@@ -2,8 +2,7 @@ package page
 
 import (
 	"errors"
-	"github.com/glebpepega/chanreader/internal/parser/board"
-	"github.com/glebpepega/chanreader/internal/parser/thread"
+	"github.com/glebpepega/chanreader/internal/parser"
 	"github.com/glebpepega/chanreader/pkg/node"
 	"golang.org/x/net/html"
 )
@@ -25,10 +24,10 @@ func New(apiUrl string, chatId int, p Page) (err error) {
 	var chanUrl string
 
 	switch v := p.(type) {
-	case *board.Board:
+	case *parser.Board:
 		chanUrl = "https://boards.4channel.org" + v.Name
-	case *thread.Thread:
-		addr := v.Board.Name + "/" + v.Number
+	case *parser.Thread:
+		addr := v.Board.Name + "/thread/" + v.Number
 		chanUrl = "https://boards.4channel.org" + addr
 	default:
 		err = errors.New("unexpected type")
