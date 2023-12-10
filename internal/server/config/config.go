@@ -7,7 +7,9 @@ import (
 )
 
 type Config struct {
-	BindAddr string `yaml:"bind_addr"`
+	Addr    string `yaml:"addr"`
+	WebHook string `yaml:"webhook"`
+	ApiUrl  string `yaml:"api_url"`
 }
 
 func MustLoad() *Config {

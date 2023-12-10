@@ -1,9 +1,8 @@
 package handler
 
 import (
-	"fmt"
-	"github.com/glebpepega/chanreader/internal/parser/board"
-	"github.com/glebpepega/chanreader/internal/parser/thread"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 )
@@ -41,21 +40,41 @@ type CallbackQueryAnswer struct {
 
 func New(log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		url := "https://boards.4channel.org/po/thread/615798/stuff"
+		u := &Update{}
 
-		thr, err := thread.Parse(url)
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Error(err.Error())
 
 			return
 		}
 
-		br, err := board.Parse("https://boards.4channel.org/n/")
+		if err := json.Unmarshal(b, u); err != nil {
+			log.Error(err.Error())
 
-		_ = thr
-		_ = br
+			return
+		}
 
-		fmt.Println(br)
+		log.Info(
+			"new request",
+			"chat id", u.Message.Chat.ID,
+		)
+
+		//url := "https://boards.4channel.org/po/thread/615798/stuff"
+		//
+		//thr, err := thread.Parse(url)
+		//if err != nil {
+		//	log.Error(err.Error())
+		//
+		//	return
+		//}
+		//
+		//br, err := board.Parse("https://boards.4channel.org/n/")
+		//
+		//_ = thr
+		//_ = br
+		//
+		//fmt.Println(br)
 
 		//fmt.Println(thr)
 		//fmt.Println(thr.Posts[0].Subject)
