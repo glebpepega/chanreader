@@ -1,13 +1,17 @@
 package thread
 
 import (
+	"github.com/glebpepega/chanreader/internal/parser/board"
 	"github.com/glebpepega/chanreader/internal/parser/post"
-	"github.com/glebpepega/chanreader/pkg/node"
+	"github.com/glebpepega/chanreader/internal/server/constructor/message"
 	"golang.org/x/net/html"
+	"strconv"
 )
 
 type Thread struct {
-	Posts []post.Post
+	Board  board.Board
+	Number string
+	Posts  []post.Post
 }
 
 func (t *Thread) ProcessChildNodes(n *html.Node) (err error) {
@@ -34,13 +38,59 @@ func (t *Thread) ProcessChildNodes(n *html.Node) (err error) {
 	return
 }
 
-func Parse(url string) (thread Thread, err error) {
-	n, err := node.Get(url)
-	if err != nil {
-		return
-	}
+func (t *Thread) Render(apiUrl string, chatId int) (err error) {
+	for i, p := range t.Posts {
+		var s message.Sendable
 
-	err = thread.ProcessChildNodes(n)
+		text := p.Subject + "\n" + p.DateTime + "\nNo." + strconv.Itoa(p.Number) + "\n\n" + p.Message
+
+		keyboard := make([][]message.InlineKeyboardButton, 0)
+
+		if i == len(t.Posts)-1 {
+			bRow := []message.InlineKeyboardButton{
+				{
+					Text:          "Board",
+					Callback_data: t.Board.Name,
+				},
+			}
+
+			hRow := []message.InlineKeyboardButton{
+				{
+					Text:          "Home",
+					Callback_data: "H",
+				},
+			}
+
+			keyboard = append(keyboard, bRow, hRow)
+		}
+
+		replyMarkup := message.InlineKeyboardMarkup{
+			Inline_keyboard: keyboard,
+		}
+
+		if p.FileLink != "" {
+			s = &message.Photo{
+				Chat_id:      chatId,
+				Photo:        p.FileLink,
+				Caption:      text,
+				Reply_markup: replyMarkup,
+			}
+
+			continue
+		}
+
+		if p.FileLink == "" {
+			s = &message.Text{
+				Chat_id:      chatId,
+				Text:         text,
+				Reply_markup: replyMarkup,
+			}
+		}
+
+		if err = s.Send(apiUrl); err != nil {
+			return
+		}
+	}
 
 	return
 }

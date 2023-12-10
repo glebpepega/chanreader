@@ -1,44 +1,76 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
+	"github.com/glebpepega/chanreader/internal/parser/board"
+	"github.com/glebpepega/chanreader/internal/parser/thread"
+	"github.com/glebpepega/chanreader/internal/server/constructor/home"
+	"github.com/glebpepega/chanreader/internal/server/constructor/page"
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 )
 
 type Update struct {
-	Update_id      int
-	Message        Message
-	Callback_query CallbackQuery
+	Update_id      int           `json:"update_id"`
+	Message        Message       `json:"message"`
+	Callback_query CallbackQuery `json:"callback_query"`
 }
 
 type Message struct {
-	Chat Chat
-	Text string
+	Chat Chat   `json:"chat"`
+	Text string `json:"text"`
 }
 
 type Chat struct {
-	ID int
+	Id int `json:"id"`
 }
 
 type CallbackQuery struct {
-	ID   string
-	From User
+	Id   string `json:"id"`
+	From User   `json:"from"`
+	Data string `json:"data"`
 }
 
 type User struct {
-	ID         int
-	Is_bot     bool
-	First_name string
+	Id         int    `json:"id"`
+	Is_bot     bool   `json:"is_bot"`
+	First_name string `json:"first_name"`
 }
 
 type CallbackQueryAnswer struct {
-	Callback_query_id string
-	Text              string
+	Callback_query_id string `json:"callback_query_id"`
 }
 
-func New(log *slog.Logger) http.HandlerFunc {
+const (
+	boardName = iota
+	threadNum
+)
+
+func (cq *CallbackQuery) Answer(apiUrl string) (err error) {
+	cqa := CallbackQueryAnswer{
+		Callback_query_id: cq.Id,
+	}
+
+	body, err := json.Marshal(cqa)
+	if err != nil {
+		return
+	}
+
+	buf := bytes.NewBuffer(body)
+
+	resp, err := http.Post(apiUrl+"/answerCallbackQuery", "application/json", buf)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	return
+}
+
+func New(log *slog.Logger, apiUrl string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u := &Update{}
 
@@ -57,26 +89,72 @@ func New(log *slog.Logger) http.HandlerFunc {
 
 		log.Info(
 			"new request",
-			"chat id", u.Message.Chat.ID,
+			"chat id", u.Message.Chat.Id,
 		)
 
-		//url := "https://boards.4channel.org/po/thread/615798/stuff"
-		//
-		//thr, err := thread.Parse(url)
-		//if err != nil {
-		//	log.Error(err.Error())
-		//
-		//	return
-		//}
-		//
-		//br, err := board.Parse("https://boards.4channel.org/n/")
-		//
-		//_ = thr
-		//_ = br
-		//
-		//fmt.Println(br)
+		if u.Callback_query.Id != "" {
+			if u.Callback_query.Data == "" {
+				log.Error("empty callback data")
 
-		//fmt.Println(thr)
-		//fmt.Println(thr.Posts[0].Subject)
+				return
+			}
+
+			if err := u.Callback_query.Answer(apiUrl); err != nil {
+				log.Error(err.Error())
+
+				return
+			}
+
+			chatId := u.Callback_query.From.Id
+
+			if u.Callback_query.Data == "H" {
+				if err := home.New(apiUrl, chatId); err != nil {
+					log.Error(err.Error())
+				}
+
+				return
+			}
+
+			var p page.Page
+
+			if strings.Contains(u.Callback_query.Data, "thread") {
+				sl := strings.Split(u.Callback_query.Data, "/thread/")
+
+				if len(sl) != 2 {
+					log.Error("unexpected callback data")
+
+					return
+				}
+
+				p = &thread.Thread{
+					Board: board.Board{
+						Name: sl[boardName],
+					},
+					Number: sl[threadNum],
+				}
+			} else {
+				p = &board.Board{
+					Name: u.Callback_query.Data,
+				}
+			}
+
+			if err := page.New(apiUrl, chatId, p); err != nil {
+				log.Error(err.Error())
+			}
+
+			return
+		}
+
+		msg := u.Message.Text
+
+		if msg == "/start" || msg == "/home" {
+			chatId := u.Message.Chat.Id
+
+			if err := home.New(apiUrl, chatId); err != nil {
+				log.Error(err.Error())
+			}
+
+			return
+		}
 	}
 }

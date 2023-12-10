@@ -50,12 +50,14 @@ func (s *Server) setWebHook() (err error) {
 }
 
 func (s *Server) setupHandlers() {
-	s.Router.HandleFunc("/", handler.New(s.Logger))
+	s.Router.HandleFunc("/", handler.New(s.Logger, s.ApiURL))
 }
 
 func (s *Server) Start() (err error) {
 	err = s.setWebHook()
 	s.setupHandlers()
+
+	s.Logger.Info("server started running")
 
 	err = http.ListenAndServe(s.Addr, s.Router)
 
